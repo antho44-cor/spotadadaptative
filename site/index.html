@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="fr" data-theme="yellow">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ma musique">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Ma musique</title>
+<style>
+/* ===== Thèmes (contrastes élevés) ===== */
+:root { --scale: 1; }
+[data-theme=yellow] { --bg:#000; --fg:#ffe600; --tile:#141414; --line:#ffe600; --btn:#ffe600; --btn-fg:#000; --muted:#d9c800; }
+[data-theme=white]  { --bg:#000; --fg:#fff;    --tile:#161616; --line:#fff;    --btn:#fff;    --btn-fg:#000; --muted:#cfcfcf; }
+[data-theme=light]  { --bg:#fff; --fg:#000;    --tile:#f0f0f0; --line:#000;    --btn:#000;    --btn-fg:#fff; --muted:#333; }
+
+* { box-sizing: border-box; }
+html, body {
+  height: 100%; margin: 0; background: var(--bg); color: var(--fg);
+  font-family: -apple-system, system-ui, "SF Pro Rounded", Arial, sans-serif;
+  overscroll-behavior: none; touch-action: manipulation;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+}
+input, textarea, code, .set { -webkit-user-select: text; user-select: text; }
+#app {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+svg { fill: currentColor; }
+
+/* ===== Écran d'accueil ===== */
+.home { display: flex; flex-direction: column; height: 100%; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; min-height: 88px; }
+.top h1 { margin: 0; font-size: calc(46px * var(--scale)); font-weight: 900; }
+.top .pg { font-size: calc(32px * var(--scale)); font-weight: 700; color: var(--muted); }
+.badge { display: inline-block; font-size: 24px; padding: 4px 12px; border: 3px solid var(--line); border-radius: 10px; vertical-align: middle; }
+.set-btn {
+  min-width: 190px; height: 64px; border: 3px solid var(--line); border-radius: 16px; background: transparent;
+  color: var(--muted); font-size: 24px; font-weight: 700; line-height: 1.1;
+}
+.set-btn small { display: block; font-size: 16px; font-weight: 500; }
+.grid {
+  flex: 1; min-height: 0; display: grid; gap: 20px; padding: 0 24px 12px;
+  grid-template-columns: repeat(var(--cols), 1fr); grid-template-rows: repeat(var(--rows), 1fr);
+}
+.tile {
+  position: relative; display: flex; flex-direction: column; padding: 0; min-height: 0; overflow: hidden;
+  border: 6px solid var(--line); border-radius: 28px; background: var(--tile); color: var(--fg); text-align: left;
+}
+.tile .cover { flex: 1; min-height: 0; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; }
+.tile .ini { font-size: calc(150px * var(--scale)); font-weight: 900; color: #fff; text-shadow: 0 4px 14px rgba(0,0,0,.5); }
+.tile .name {
+  padding: 14px 20px 16px; font-size: calc(44px * var(--scale)); font-weight: 800; line-height: 1.1;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tile.playing::before {
+  content: "♪ En cours"; position: absolute; top: 12px; left: 12px; z-index: 2; padding: 6px 16px; border-radius: 14px;
+  background: var(--btn); color: var(--btn-fg); font-size: calc(30px * var(--scale)); font-weight: 800;
+}
+.tile.sel { outline: 14px solid var(--fg); outline-offset: 3px; }
+.tile.sel::after {
+  content: "Touchez encore pour lancer"; position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 16px;
+  background: var(--btn); color: var(--btn-fg); font-size: calc(36px * var(--scale)); font-weight: 900; text-align: center;
+}
+.foot { display: flex; gap: 20px; padding: 12px 24px 20px; height: 150px; }
+.bigbtn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 18px; padding: 0 16px;
+  border: 6px solid var(--line); border-radius: 28px; background: var(--btn); color: var(--btn-fg);
+  font-size: calc(48px * var(--scale)); font-weight: 800;
+}
+.bigbtn.wide { flex: 1.4; }
+.foot .bigbtn { font-size: 48px; white-space: nowrap; overflow: hidden; }
+.bigbtn.off { opacity: .25; }
+.pressed { transform: scale(.97); outline: 12px solid var(--fg); outline-offset: 3px; }
+.bigbtn.pressed { background: var(--bg); color: var(--fg); }
+.empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; text-align: center; font-size: calc(48px * var(--scale)); font-weight: 800; }
+.empty .bigbtn { flex: none; width: 70%; height: 150px; }
+.empty .bigbtn.gate { width: 92%; height: 62%; font-size: calc(68px * var(--scale)); line-height: 1.15; text-align: center; }
+
+/* ===== Écran de lecture ===== */
+.player { display: flex; flex-direction: column; height: 100%; padding: 16px 24px 20px; gap: 18px; }
+.pl-top { display: flex; gap: 18px; height: 110px; }
+.pl-top .bigbtn { flex: none; width: 380px; }
+.pl-main { flex: 1; min-height: 0; display: flex; gap: 32px; align-items: center; }
+.art { height: 100%; aspect-ratio: 1; max-width: 46%; border: 6px solid var(--line); border-radius: 28px; background-size: cover; background-position: center; background-color: var(--tile); display: flex; align-items: center; justify-content: center; font-size: 160px; }
+.info { flex: 1; min-width: 0; }
+.title { font-size: calc(68px * var(--scale)); font-weight: 900; line-height: 1.05; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.artist { margin-top: 14px; font-size: calc(46px * var(--scale)); font-weight: 700; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dev { margin-top: 18px; font-size: calc(28px * var(--scale)); color: var(--muted); }
+.ctrls { display: flex; gap: 18px; height: 230px; }
+.ctl svg { width: 130px; height: 130px; }
+.ctl.main { flex: 1.5; }
+.vol { display: flex; gap: 18px; height: 100px; }
+.vol .bigbtn { font-size: calc(40px * var(--scale)); }
+.vol .lvl { flex: 1; display: flex; align-items: center; justify-content: center; font-size: calc(40px * var(--scale)); font-weight: 800; }
+
+/* ===== Message ===== */
+#msg {
+  position: fixed; left: 24px; right: 24px; top: 50%; transform: translateY(-50%); z-index: 20; display: none; pointer-events: none;
+  padding: 32px; border: 6px solid var(--line); border-radius: 28px; background: var(--btn); color: var(--btn-fg);
+  font-size: calc(48px * var(--scale)); font-weight: 900; text-align: center; line-height: 1.15;
+}
+
+/* ===== Réglages (aidant) ===== */
+.set { height: 100%; overflow: auto; -webkit-overflow-scrolling: touch; padding: 24px 32px 80px; font-size: 22px; line-height: 1.4; }
+.set h1 { margin: 0; font-size: 36px; }
+.set h1 small { font-size: 20px; color: var(--muted); font-weight: 500; }
+.set h2 { margin: 32px 0 8px; font-size: 26px; border-bottom: 3px solid var(--line); padding-bottom: 6px; }
+.set .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.set .row.between { justify-content: space-between; }
+.set label { display: block; margin: 10px 0; }
+.set label.inline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.set input[type=text], .set input:not([type]), .set textarea, .set select {
+  min-height: 52px; padding: 6px 12px; font-size: 22px; border: 3px solid var(--line); border-radius: 12px; background: var(--tile); color: var(--fg); max-width: 100%;
+}
+.set input[type=text], .set input:not([type]) { width: 100%; }
+.set textarea { width: 100%; height: 90px; }
+.set input[type=checkbox], .set input[type=radio] { width: 30px; height: 30px; accent-color: var(--fg); }
+.sbtn { min-height: 56px; padding: 0 22px; border: 3px solid var(--line); border-radius: 14px; background: var(--btn); color: var(--btn-fg); font-size: 22px; font-weight: 700; }
+.sbtn.small { min-height: 44px; padding: 0 14px; font-size: 20px; }
+.muted { color: var(--muted); }
+.chk { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--muted); }
+.favrow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--muted); }
+.favrow span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+code { padding: 2px 8px; border: 2px solid var(--muted); border-radius: 8px; word-break: break-all; }
+summary { cursor: pointer; margin: 10px 0; font-weight: 700; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="msg" role="status" aria-live="assertive"></div>
+<noscript>Cette application a besoin de JavaScript.</noscript>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. Utilitaires et configuration
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const toB64 = s => btoa(String.fromCharCode(...new TextEncoder().encode(s)));
+const fromB64 = s => new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { } }
+};
+
+const DEFAULTS = {
+  clientId: '',        // Client ID de l'application Spotify (voir README)
+  theme: 'yellow',     // yellow | white | light
+  scale: 1.25,         // taille du texte : 1 | 1.25 | 1.5
+  perPage: 4,          // nombre de grandes tuiles par page : 2 | 4 | 6
+  confirm: false,      // validation en deux temps (1er toucher = sélectionner et lire le nom)
+  speech: true,        // synthèse vocale des actions
+  announce: false,     // annoncer chaque nouveau titre (à tester : peut baisser la musique)
+  minPress: 0,         // durée minimale d'appui (ms) pour valider un toucher
+  cooldown: 300,       // délai (ms) pendant lequel les touchers répétés sont ignorés (les adaptations du toucher d'iPadOS s'y ajoutent)
+  shuffle: false,      // lecture aléatoire des playlists
+  awake: true,         // garder l'écran allumé
+  engine: 'web',       // 'web' : le son est joué DANS cette page (lecteur Spotify intégré) | 'connect' : télécommande de l'app Spotify
+  deviceId: null, deviceName: null,
+  favorites: []        // [{id, name, uri, image}]
+};
+let cfg = { ...DEFAULTS, ...store.get('cfg', {}) };
+const saveCfg = () => store.set('cfg', cfg);
+
+const S = { screen: 'home', page: 0, selected: null, now: null, nowShown: false, demo: true, backend: null, allPl: null, lock: false, authLost: false };
+
+/* =====================================================================
+   2. Gestion des touchers (le cœur de l'accessibilité motrice)
+      - l'action se déclenche au RELÂCHEMENT, sur la même cible
+      - les touchers multiples (paume) sont ignorés
+      - appui minimal et délai anti-répétition réglables
+      - le clic "synthétique" de VoiceOver / clavier fonctionne aussi
+   ===================================================================== */
+const live = new Set(); let multi = false, lastTrigger = -1e9;
+addEventListener('pointerdown', e => { live.add(e.pointerId); if (live.size > 1) multi = true; }, true);
+const endPtr = e => { live.delete(e.pointerId); if (!live.size) multi = false; };
+addEventListener('pointerup', endPtr); addEventListener('pointercancel', endPtr);
+addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if (!e.target.closest('.scroll')) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+const inside = (e, el) => { const r = el.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+function trigger(fn, e) {
+  const now = performance.now();
+  if (now - lastTrigger < cfg.cooldown) return;
+  lastTrigger = now; fn(e);
+}
+function bindPress(el, fn, hold = 0) {
+  let ok = false, t0 = 0, timer = null;
+  const cancel = () => { ok = false; clearTimeout(timer); el.classList.remove('pressed'); };
+  el.addEventListener('pointerdown', e => {
+    if (multi || !e.isPrimary) return;
+    ok = true; t0 = performance.now(); el.classList.add('pressed');
+    if (hold) timer = setTimeout(() => { if (ok) { cancel(); fn(e); } }, hold);
+  });
+  el.addEventListener('pointerup', e => {
+    const was = ok; cancel();
+    if (hold || !was || multi || !inside(e, el)) return;
+    if (performance.now() - t0 < cfg.minPress) return;
+    trigger(fn, e);
+  });
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('click', e => { if (e.detail === 0) { hold ? fn(e) : trigger(fn, e); } }); // VoiceOver / clavier
+}
+
+/* =====================================================================
+   3. Voix et messages
+   ===================================================================== */
+function say(t) {
+  if (!cfg.speech || !('speechSynthesis' in window)) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(t); u.lang = 'fr-FR'; u.rate = 0.95; speechSynthesis.speak(u); } catch { }
+}
+let msgTimer;
+function showMessage(text, { ms = 4000, speak = true } = {}) {
+  const m = $('#msg'); m.textContent = text; m.style.display = 'block';
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => { m.style.display = 'none'; }, ms);
+  if (speak) say(text);
+}
+function errText(e) {
+  switch (e.code) {
+    case 'login': return 'Spotify doit être reconnecté. Demandez de l’aide.';
+    case 'nodevice': return 'Ouvrez l’application Spotify sur l’iPad une fois, puis réessayez.';
+    case 'premium': return 'Spotify Premium est nécessaire.';
+    case 'rate': return 'Trop de demandes. Patientez un instant.';
+    case 'volume': return 'Réglez le volume avec les boutons de l’iPad.';
+    case 'net': return 'Pas de connexion à Internet.';
+    case 'forbidden': return 'Accès refusé par Spotify. Demandez de l’aide.';
+    default: return 'Un problème est survenu. Réessayez.';
+  }
+}
+async function run(fn) {
+  try { await fn(); return true; }
+  catch (e) { if (e.code === 'login') S.authLost = true; showMessage(errText(e), { ms: 7000 }); return false; }
+}
+
+/* =====================================================================
+   4. Spotify : connexion (PKCE) et API Web
+   ===================================================================== */
+const SCOPES = 'streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative';
+const TOK = 'sp_tok';
+const redirectUri = location.origin + location.pathname;
+const tok = () => store.get(TOK, null);
+class SpErr extends Error { constructor(code, extra = {}) { super(code); this.code = code; Object.assign(this, extra); } }
+
+const b64url = b => btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const rnd = n => { const a = new Uint8Array(n); crypto.getRandomValues(a); return b64url(a).slice(0, n); };
+const sha256 = async s => new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)));
+
+async function spLogin(clientId) {
+  const v = rnd(96), st = rnd(16);
+  store.set('pkce', { v, st });
+  const u = new URL('https://accounts.spotify.com/authorize');
+  u.search = new URLSearchParams({
+    client_id: clientId, response_type: 'code', redirect_uri: redirectUri, scope: SCOPES,
+    code_challenge_method: 'S256', code_challenge: b64url(await sha256(v)), state: st
+  });
+  location.href = u.toString();
+}
+async function tokenRequest(params) {
+  let r;
+  try { r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(params) }); }
+  catch { throw new SpErr('net'); }
+  const j = await r.json().catch(() => ({}));
+  return { ok: r.ok, j };
+}
+async function spHandleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('code') && !p.has('error')) return null;
+  const saved = store.get('pkce', null);
+  history.replaceState({}, '', location.pathname);
+  if (p.get('error')) return { error: p.get('error') };
+  if (!saved || saved.st !== p.get('state')) return { error: 'état de connexion invalide' };
+  const { ok, j } = await tokenRequest({ grant_type: 'authorization_code', code: p.get('code'), redirect_uri: redirectUri, client_id: cfg.clientId, code_verifier: saved.v });
+  store.set('pkce', null);
+  if (!ok) return { error: j.error_description || j.error || 'échec' };
+  store.set(TOK, { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + j.expires_in * 1000, auth: Date.now(), scope: j.scope || '' });
+  return { ok: true };
+}
+let refreshing = null;
+async function spRefresh() {
+  const t = tok(); if (!t || !t.refresh) throw new SpErr('login');
+  const { ok, j } = await tokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: cfg.clientId });
+  if (!ok) { if (j.error === 'invalid_grant') { store.set(TOK, null); throw new SpErr('login'); } throw new SpErr('net'); }
+  // Spotify : le refresh token expire 6 mois après l'autorisation initiale ; on conserve la date `auth`.
+  store.set(TOK, { ...t, access: j.access_token, refresh: j.refresh_token || t.refresh, exp: Date.now() + j.expires_in * 1000 });
+}
+async function spToken() {
+  let t = tok(); if (!t) throw new SpErr('login');
+  if (t.exp - Date.now() < 60000) { refreshing = refreshing || spRefresh().finally(() => { refreshing = null; }); await refreshing; t = tok(); }
+  return t.access;
+}
+async function sp(path, { method = 'GET', body, query } = {}, retry = true) {
+  const url = new URL('https://api.spotify.com/v1' + path);
+  for (const [k, v] of Object.entries(query || {})) if (v !== undefined && v !== null && v !== '') url.searchParams.set(k, v);
+  let r;
+  try {
+    r = await fetch(url, { method, headers: { Authorization: 'Bearer ' + await spToken(), ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+  } catch (e) { if (e instanceof SpErr) throw e; throw new SpErr('net'); }
+  if (r.status === 401 && retry) { const t = tok(); if (t) store.set(TOK, { ...t, exp: 0 }); return sp(path, { method, body, query }, false); }
+  const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch { }
+  if (r.ok) return j;
+  const reason = j?.error?.reason;
+  if (r.status === 429) throw new SpErr('rate');
+  if (r.status === 401) throw new SpErr('login');
+  if (reason === 'NO_ACTIVE_DEVICE' || (r.status === 404 && path.startsWith('/me/player'))) throw new SpErr('nodevice');
+  if (reason === 'PREMIUM_REQUIRED') throw new SpErr('premium');
+  if (reason === 'VOLUME_CONTROL_DISALLOW') throw new SpErr('volume');
+  if (r.status === 403) throw new SpErr('forbidden', { detail: j?.error?.message });
+  throw new SpErr('other', { status: r.status });
+}
+
+const imgOf = (a, small) => ((small ? (a?.[1] || a?.[0]) : a?.[0]) || {}).url || null;
+const mapItem = p => ({ id: p.id, name: p.name, uri: p.uri, image: imgOf(p.images, true) });
+
+const SpotifyBE = {
+  async listPlaylists() {
+    const out = [];
+    for (let off = 0; off < 300; off += 50) {
+      const j = await sp('/me/playlists', { query: { limit: 50, offset: off } });
+      out.push(...(j?.items || []).filter(Boolean).map(mapItem));
+      if (!j?.next) break;
+    }
+    return out;
+  },
+  async resolveLink(link) {
+    const m = String(link).match(/(?:open\.spotify\.com\/(?:intl-[a-z]+\/)?|spotify:)(playlist|album|artist)[/:]([A-Za-z0-9]+)/);
+    if (!m) throw new SpErr('other');
+    return mapItem(await sp(`/${m[1]}s/${m[2]}`));
+  },
+  async devices() {
+    const j = await sp('/me/player/devices');
+    return (j?.devices || []).map(d => ({ id: d.id, name: d.name, type: d.type, active: d.is_active }));
+  },
+  async pickDevice() {
+    const ds = await this.devices();
+    const d = ds.find(x => x.id === cfg.deviceId) || ds.find(x => cfg.deviceName && x.name === cfg.deviceName) || ds.find(x => x.active) || ds[0];
+    if (!d) throw new SpErr('nodevice');
+    return d;
+  },
+  async state() {
+    const j = await sp('/me/player');
+    if (!j || !j.device) return null;
+    const it = j.item || {};
+    return {
+      playing: !!j.is_playing, title: it.name || '',
+      artist: (it.artists || []).map(a => a.name).join(', ') || it.show?.name || '',
+      image: imgOf(it.album?.images || it.images), context: j.context?.uri || null,
+      device: j.device.name, volume: j.device.volume_percent, canVolume: j.device.supports_volume !== false
+    };
+  },
+  async startPlayback(uri, deviceId) {
+    const q = { device_id: deviceId || undefined };
+    await sp('/me/player/shuffle', { method: 'PUT', query: { state: !!cfg.shuffle, ...q } }).catch(() => { });
+    await sp('/me/player/play', { method: 'PUT', query: q, body: { context_uri: uri } });
+  },
+  async playContext(uri) {
+    try { await this.startPlayback(uri, cfg.deviceId); }
+    catch (e) {
+      if (e.code !== 'nodevice') throw e;
+      const d = await this.pickDevice();                       // l'appareil existe mais n'est pas "actif" : on le réveille
+      await sp('/me/player', { method: 'PUT', body: { device_ids: [d.id], play: false } });
+      await sleep(700);
+      await this.startPlayback(uri, d.id);
+    }
+  },
+  async resume() {
+    try { await sp('/me/player/play', { method: 'PUT', query: { device_id: cfg.deviceId || undefined } }); }
+    catch (e) {
+      if (e.code !== 'nodevice') throw e;
+      const d = await this.pickDevice();
+      await sp('/me/player', { method: 'PUT', body: { device_ids: [d.id], play: true } });
+    }
+  },
+  pause: () => sp('/me/player/pause', { method: 'PUT' }),
+  next: () => sp('/me/player/next', { method: 'POST' }),
+  prev: () => sp('/me/player/previous', { method: 'POST' }),
+  setVolume: v => sp('/me/player/volume', { method: 'PUT', query: { volume_percent: v } })
+};
+
+/* =====================================================================
+   4b. Lecteur intégré (Web Playback SDK) : le son est joué DANS cette page.
+       Avantage : aucune dépendance à l'app Spotify de l'iPad (qui peut être suspendue
+       par iOS quand elle est en pause). Safari exige un geste de l'utilisateur pour
+       créer le lecteur : d'où l'écran « Toucher ici pour activer la musique ».
+   ===================================================================== */
+const Web = { player: null, deviceId: null, ready: false, failed: false, loading: null, onReady: null };
+function loadSdk() {
+  if (window.Spotify) return Promise.resolve();
+  if (Web.loading) return Web.loading;
+  Web.loading = new Promise((resolve, reject) => {
+    window.onSpotifyWebPlaybackSDKReady = () => resolve();
+    const el = document.createElement('script'); el.src = 'https://sdk.scdn.co/spotify-player.js'; el.async = true;
+    el.onerror = () => { Web.loading = null; reject(new SpErr('net')); };
+    document.head.appendChild(el);
+  });
+  return Web.loading;
+}
+// À appeler directement depuis un toucher (exigence de Safari/iOS pour pouvoir émettre du son).
+function activateWeb() {
+  if (!window.Spotify) { loadSdk().catch(() => { }); showMessage('Chargement du lecteur… touchez de nouveau dans un instant.', { ms: 3500, speak: false }); return Promise.resolve(null); }
+  const t = tok();
+  if (!t || !String(t.scope || '').includes('streaming')) return Promise.resolve(false);
+  if (!Web.player) {
+    const p = Web.player = new Spotify.Player({ name: 'Ma musique (iPad)', volume: 1, getOAuthToken: cb => { spToken().then(cb).catch(() => { }); } });
+    p.addListener('ready', ({ device_id }) => { Web.deviceId = device_id; Web.ready = true; S.webReady = true; if (Web.onReady) Web.onReady(); else if (S.screen === 'home' && !live.size) render(); });
+    p.addListener('not_ready', () => { Web.ready = false; S.webReady = false; });
+    p.addListener('player_state_changed', () => pollSoon(50));
+    p.addListener('authentication_error', () => showMessage(errText({ code: 'login' }), { ms: 7000 }));
+    p.addListener('account_error', () => showMessage(errText({ code: 'premium' }), { ms: 7000 }));
+    p.addListener('autoplay_failed', () => showMessage('Touchez le bouton ▶ pour lancer la musique.', { ms: 6000 }));
+  }
+  try { Web.player.activateElement(); } catch { }
+  if (Web.ready) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const to = setTimeout(() => { Web.onReady = null; resolve(false); }, 10000);
+    Web.onReady = () => { clearTimeout(to); Web.onReady = null; resolve(true); };
+    Web.player.connect().then(ok => { if (ok === false) { clearTimeout(to); resolve(false); } }, () => { clearTimeout(to); resolve(false); });
+  });
+}
+function failWeb(text) {
+  Web.failed = true; S.webReady = false; pickBackend();
+  showMessage(text, { ms: 9000 });
+  if (S.screen === 'home') render();
+  return false;
+}
+const WebBE = Object.assign(Object.create(SpotifyBE), {
+  unlock() { try { Web.player && Web.player.activateElement(); } catch { } },
+  async state() {
+    const st = Web.player && Web.player.getCurrentState ? await Web.player.getCurrentState() : null;
+    if (!st) return null;
+    const c = st.track_window?.current_track || {};
+    return { playing: !st.paused, title: c.name || '', artist: (c.artists || []).map(a => a.name).join(', '), image: imgOf(c.album?.images), context: st.context?.uri || null, device: 'cet iPad', volume: undefined, canVolume: false };
+  },
+  async playContext(uri) {
+    if (!Web.deviceId) throw new SpErr('nodevice');
+    const q = { device_id: Web.deviceId };
+    await sp('/me/player/shuffle', { method: 'PUT', query: { state: !!cfg.shuffle, ...q } }).catch(() => { });
+    await sp('/me/player/play', { method: 'PUT', query: q, body: { context_uri: uri } });
+    // Safari peut refuser un son déclenché « à distance » : on vérifie et on invite à toucher ▶.
+    setTimeout(async () => {
+      const st = Web.player && Web.player.getCurrentState ? await Web.player.getCurrentState().catch(() => null) : null;
+      if (!st || st.paused) showMessage('Touchez le bouton ▶ pour lancer la musique.', { ms: 6000 });
+    }, 3000);
+  },
+  toggle: () => Web.player.togglePlay(),
+  resume: () => Web.player.resume(),
+  pause: () => Web.player.pause(),
+  next: () => Web.player.nextTrack(),
+  prev: () => Web.player.previousTrack(),
+  setVolume: () => { throw new SpErr('volume'); } // iOS : le volume se règle avec les boutons de l'iPad
+});
+function pickBackend() { S.demo = !cfg.clientId; S.backend = S.demo ? DemoBE : (cfg.engine === 'web' && !Web.failed) ? WebBE : SpotifyBE; }
+
+/* =====================================================================
+   5. Mode démo (aucun compte Spotify requis, pour essayer l'interface)
+   ===================================================================== */
+const DemoBE = {
+  pl: ['Mes préférées', 'Pour se réveiller', 'Calme et détente', 'Les années 80', 'Musique classique', 'Chansons françaises', 'Jazz du soir', 'Radio du matin']
+        .map((n, i) => ({ id: 'd' + i, name: n, uri: 'demo:' + i, image: null })),
+  tracks: [['Matin calme', 'Artiste de démonstration'], ['Promenade au soleil', 'Artiste de démonstration'], ['Soirée d’été', 'Orchestre d’exemple'], ['Petit jardin', 'Orchestre d’exemple'], ['Retour à la maison', 'Duo d’exemple']],
+  st: { playing: false, idx: 0, volume: 50, ctx: null },
+  async listPlaylists() { return this.pl; },
+  async resolveLink() { throw new SpErr('other'); },
+  async devices() { return [{ id: 'demo', name: 'Mode démo', type: 'Tablet', active: true }]; },
+  async state() {
+    if (!this.st.ctx) return null;
+    const t = this.tracks[this.st.idx];
+    return { playing: this.st.playing, title: t[0], artist: t[1], image: null, context: this.st.ctx, device: 'Mode démo', volume: this.st.volume, canVolume: true };
+  },
+  async playContext(uri) { this.st.ctx = uri; this.st.idx = 0; this.st.playing = true; },
+  async resume() { this.st.playing = true; },
+  async pause() { this.st.playing = false; },
+  async next() { this.st.idx = (this.st.idx + 1) % this.tracks.length; },
+  async prev() { this.st.idx = (this.st.idx + this.tracks.length - 1) % this.tracks.length; },
+  async setVolume(v) { this.st.volume = v; }
+};
+
+/* =====================================================================
+   6. Vues
+   ===================================================================== */
+const I = {
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l11 7-11 7zM17 5h3v14h-3z"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5L8 12l11 7zM4 5h3v14H4z"/></svg>'
+};
+function grad(n) { let h = 0; for (const c of String(n)) h = (h * 31 + c.charCodeAt(0)) % 360; return `linear-gradient(135deg,hsl(${h} 65% 38%),hsl(${(h + 50) % 360} 65% 22%))`; }
+const okImg = u => typeof u === 'string' && /^https:\/\//.test(u);
+const coverAttr = it => okImg(it.image) ? `data-img="${esc(it.image)}"` : `style="background:${grad(it.name)}"`;
+
+function items() { return cfg.favorites.length ? cfg.favorites : S.demo ? DemoBE.pl : (S.allPl || []).slice(0, 12); }
+
+function tileHtml(it) {
+  return `<button class="tile" data-act="tile" data-id="${esc(it.id)}" aria-label="${esc(it.name)}">
+    <div class="cover" ${coverAttr(it)}>${okImg(it.image) ? '' : `<span class="ini">${esc([...String(it.name)][0] || '♪')}</span>`}</div>
+    <div class="name">${esc(it.name)}</div></button>`;
+}
+function emptyHtml() {
+  if (!S.demo && !tok()) return `<div class="empty"><div>Spotify n’est pas connecté.</div><button class="bigbtn" data-act="connect">Se connecter</button></div>`;
+  if (!S.demo && S.allPl === null) return `<div class="empty">Chargement…</div>`;
+  return `<div class="empty">Aucune musique à afficher.<br>Demandez de l’aide (Réglages).</div>`;
+}
+const needGate = () => !S.demo && cfg.engine === 'web' && !Web.failed && !!tok() && !S.webReady;
+function viewGate() {
+  return `<div class="home"><div class="top"><h1>Ma musique</h1>
+    <button class="set-btn" data-act="settings" data-hold="1500" aria-label="Réglages pour l’aidant, maintenir deux secondes">Réglages<small>maintenir 2 s</small></button></div>
+    <div class="empty"><button class="bigbtn gate" data-act="activate">▶ Toucher ici pour activer la musique</button></div></div>`;
+}
+function viewHome() {
+  if (needGate()) return viewGate();
+  const per = cfg.perPage, its = items(), pages = Math.max(1, Math.ceil(its.length / per));
+  S.page = Math.min(S.page, pages - 1);
+  const slice = its.slice(S.page * per, S.page * per + per);
+  const cols = per === 6 ? 3 : 2, rows = per === 2 ? 1 : 2;
+  S.nowShown = !!S.now;
+  const showFoot = pages > 1 || S.now;
+  return `<div class="home" style="--cols:${cols};--rows:${rows}">
+    <div class="top"><h1>${S.demo ? '<span class="badge">DÉMO</span> ' : ''}Ma musique</h1>
+      <span class="pg">${pages > 1 ? `Page ${S.page + 1} sur ${pages}` : ''}</span>
+      <button class="set-btn" data-act="settings" data-hold="1500" aria-label="Réglages pour l’aidant, maintenir deux secondes">Réglages<small>maintenir 2 s</small></button></div>
+    ${slice.length ? `<div class="grid">${slice.map(tileHtml).join('')}</div>` : emptyHtml()}
+    ${showFoot ? `<div class="foot">
+      ${pages > 1 ? `<button class="bigbtn${S.page <= 0 ? ' off' : ''}" data-act="page" data-dir="-1" ${S.page <= 0 ? 'aria-disabled="true"' : ''}>◀ Précédent</button>` : ''}
+      ${S.now ? `<button class="bigbtn wide" data-act="nowplaying">♪ En cours</button>` : ''}
+      ${pages > 1 ? `<button class="bigbtn${S.page >= pages - 1 ? ' off' : ''}" data-act="page" data-dir="1" ${S.page >= pages - 1 ? 'aria-disabled="true"' : ''}>Suivant ▶</button>` : ''}
+    </div>` : ''}</div>`;
+}
+function viewPlayer() {
+  return `<div class="player">
+    <div class="pl-top"><button class="bigbtn" data-act="back">◀ Retour</button></div>
+    <div class="pl-main"><div class="art" id="art" role="img" aria-label="Pochette"></div>
+      <div class="info"><div class="title" id="ttl" aria-live="polite"></div><div class="artist" id="atr"></div><div class="dev" id="dev"></div></div></div>
+    <div class="ctrls">
+      <button class="bigbtn ctl" data-act="prev" aria-label="Morceau précédent">${I.prev}</button>
+      <button class="bigbtn ctl main" data-act="toggle" id="tgl" aria-label="Lecture ou pause">${I.play}</button>
+      <button class="bigbtn ctl" data-act="next" aria-label="Morceau suivant">${I.next}</button></div>
+    <div class="vol" id="vol">
+      <button class="bigbtn" data-act="vol" data-d="-10">− Moins fort</button>
+      <div class="lvl" id="lvl"></div>
+      <button class="bigbtn" data-act="vol" data-d="10">+ Plus fort</button></div></div>`;
+}
+const opt = (v, cur, label) => `<option value="${v}" ${String(cur) === String(v) ? 'selected' : ''}>${label}</option>`;
+function viewSettings() {
+  const t = tok(); let until = '';
+  if (t?.auth) { const d = new Date(t.auth); d.setMonth(d.getMonth() + 6); until = ` Reconnexion à prévoir avant le ${d.toLocaleDateString('fr-FR')}.`; }
+  return `<div class="set scroll">
+  <div class="row between"><h1>Réglages <small>(pour l’aidant)</small></h1><button class="sbtn" id="s-done">Terminer</button></div>
+
+  <h2>1. Connexion à Spotify</h2>
+  <p class="muted">${S.demo ? 'Mode démonstration : aucun Client ID saisi, la musique est simulée.' : t ? 'Connecté à Spotify.' + until : 'Client ID saisi, mais pas encore connecté.'}</p>
+  <label>Client ID de l’application Spotify
+    <input id="s-cid" type="text" value="${esc(cfg.clientId)}" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></label>
+  <p>Adresse de redirection à déclarer dans le tableau de bord Spotify :<br><code id="s-redir">${esc(redirectUri)}</code> <button class="sbtn small" id="s-copy">Copier</button></p>
+  <div class="row"><button class="sbtn" id="s-login">Se connecter à Spotify</button><button class="sbtn" id="s-logout">Se déconnecter</button></div>
+  <details><summary>Secours : transférer la connexion (si la connexion échoue depuis l’écran d’accueil)</summary>
+    <p class="muted">Se connecter depuis Safari, copier le code, puis le coller ici dans l’application de l’écran d’accueil. Le code donne accès au compte Spotify : ne pas le partager.</p>
+    <textarea id="s-code" spellcheck="false"></textarea>
+    <div class="row"><button class="sbtn small" id="s-exp">Copier mon code</button><button class="sbtn small" id="s-imp">Importer ce code</button></div></details>
+
+  <h2>2. Musique affichée</h2>
+  <div class="row"><button class="sbtn" id="s-load">Charger mes playlists</button></div>
+  <div id="s-sel"></div>
+  <details open><summary>Cocher les playlists à afficher</summary><div id="s-fav"><p class="muted">Appuyez sur « Charger mes playlists ».</p></div></details>
+  <label>Ajouter une playlist, un album ou un artiste par lien Spotify
+    <input id="s-link" type="text" placeholder="https://open.spotify.com/album/…" autocapitalize="off" autocomplete="off" spellcheck="false"></label>
+  <div class="row"><button class="sbtn" id="s-addlink">Ajouter</button></div>
+
+  <h2>3. Lecteur de musique</h2>
+  <label class="inline">Le son est joué <select id="o-engine">${opt('web', cfg.engine, 'dans cette page (recommandé : le son sort de l’iPad sans dépendre de l’app Spotify)')}${opt('connect', cfg.engine, 'par l’app Spotify (cette page n’est qu’une télécommande)')}</select></label>
+  ${cfg.engine === 'web' && t && !String(t.scope || '').includes('streaming') ? '<p><strong>Reconnexion nécessaire :</strong> appuyez sur « Se connecter à Spotify » pour activer le lecteur intégré.</p>' : ''}
+  <p class="muted">Appareil (utile seulement pour la télécommande de l’app Spotify) : ${esc(cfg.deviceName || 'automatique (appareil actif)')}</p>
+  <div class="row"><button class="sbtn" id="s-devs">Chercher les appareils</button></div>
+  <div id="s-devlist"></div>
+
+  <h2>4. Aides à l’utilisation</h2>
+  <label class="inline">Thème <select id="o-theme">${opt('yellow', cfg.theme, 'Jaune sur noir')}${opt('white', cfg.theme, 'Blanc sur noir')}${opt('light', cfg.theme, 'Noir sur blanc')}</select></label>
+  <label class="inline">Taille du texte <select id="o-scale">${opt(1, cfg.scale, 'Grand')}${opt(1.25, cfg.scale, 'Très grand')}${opt(1.5, cfg.scale, 'Énorme')}</select></label>
+  <label class="inline">Tuiles par page <select id="o-per">${opt(2, cfg.perPage, '2 (très grandes)')}${opt(4, cfg.perPage, '4')}${opt(6, cfg.perPage, '6')}</select></label>
+  <label class="inline"><input type="checkbox" id="o-confirm" ${cfg.confirm ? 'checked' : ''}> Valider en deux temps (1er toucher : sélection et lecture du nom ; 2e toucher : lancement)</label>
+  <label class="inline">Durée d’appui minimale <select id="o-press">${opt(0, cfg.minPress, 'Aucune')}${opt(150, cfg.minPress, '0,15 s')}${opt(300, cfg.minPress, '0,3 s')}${opt(500, cfg.minPress, '0,5 s')}${opt(800, cfg.minPress, '0,8 s')}</select></label>
+  <label class="inline">Ignorer les touchers répétés pendant <select id="o-cool">${opt(0, cfg.cooldown, 'Jamais')}${opt(400, cfg.cooldown, '0,4 s')}${opt(600, cfg.cooldown, '0,6 s')}${opt(1000, cfg.cooldown, '1 s')}${opt(1500, cfg.cooldown, '1,5 s')}</select></label>
+  <label class="inline"><input type="checkbox" id="o-speech" ${cfg.speech ? 'checked' : ''}> Voix : annoncer les actions</label>
+  <label class="inline"><input type="checkbox" id="o-announce" ${cfg.announce ? 'checked' : ''}> Voix : annoncer chaque nouveau titre (à tester)</label>
+  <label class="inline"><input type="checkbox" id="o-shuffle" ${cfg.shuffle ? 'checked' : ''}> Lecture aléatoire des playlists</label>
+  <label class="inline"><input type="checkbox" id="o-awake" ${cfg.awake ? 'checked' : ''}> Garder l’écran allumé</label>
+  </div>`;
+}
+
+/* =====================================================================
+   7. Rendu et mises à jour "en direct" (sans détruire les boutons en cours d'appui)
+   ===================================================================== */
+function applyLook() { document.documentElement.dataset.theme = cfg.theme; document.documentElement.style.setProperty('--scale', cfg.scale); }
+function render() {
+  applyLook();
+  $('#app').innerHTML = S.screen === 'player' ? viewPlayer() : S.screen === 'settings' ? viewSettings() : viewHome();
+  $('#app').querySelectorAll('[data-img]').forEach(e => { e.style.backgroundImage = `url("${e.dataset.img}")`; });
+  $('#app').querySelectorAll('[data-act]').forEach(el => {
+    if (el.getAttribute('aria-disabled') === 'true') return;
+    bindPress(el, () => actions[el.dataset.act](el.dataset), +el.dataset.hold || 0);
+  });
+  if (S.screen === 'settings') { S.lock = true; setTimeout(() => { S.lock = false; }, 900); bindSettings(); }
+  paintLive();
+}
+function paintLive() {
+  const n = S.now;
+  if (S.screen === 'home') {
+    if (!!n !== S.nowShown && !live.size) { render(); return; }
+    document.querySelectorAll('.tile').forEach(t => {
+      const it = items().find(x => x.id === t.dataset.id);
+      t.classList.toggle('sel', S.selected === t.dataset.id);
+      t.classList.toggle('playing', !!(n && it && n.context === it.uri));
+    });
+  } else if (S.screen === 'player') {
+    $('#ttl').textContent = n ? n.title : 'Rien en cours';
+    $('#atr').textContent = n ? n.artist : '';
+    $('#dev').textContent = n && n.device ? 'Sur : ' + n.device : '';
+    const art = $('#art');
+    if (n && okImg(n.image)) { art.style.backgroundImage = `url("${n.image}")`; art.textContent = ''; } else { art.style.backgroundImage = 'none'; art.textContent = '♪'; }
+    $('#tgl').innerHTML = n && n.playing ? I.pause : I.play;
+    $('#tgl').setAttribute('aria-label', n && n.playing ? 'Pause' : 'Lecture');
+    const canVol = !n || n.canVolume !== false;
+    $('#vol').style.visibility = canVol ? 'visible' : 'hidden';
+    $('#lvl').textContent = n && typeof n.volume === 'number' ? `Volume ${n.volume} %` : '';
+  }
+}
+
+/* =====================================================================
+   8. Actions
+   ===================================================================== */
+async function poll() {
+  if (document.hidden || S.screen === 'settings' || S.polling) return;
+  if (!S.demo && !tok()) return;
+  S.polling = true;
+  try {
+    const prev = S.now; S.now = await S.backend.state(); S.authLost = false;
+    paintLive();
+    if (cfg.announce && S.now && prev && S.now.title !== prev.title) say(`${S.now.title}, ${S.now.artist}`);
+  } catch (e) { if (e.code === 'login') S.authLost = true; }
+  finally { S.polling = false; }
+}
+const pollSoon = (ms = 600) => setTimeout(poll, ms);
+
+const actions = {
+  async tile(d) {
+    S.backend.unlock?.();
+    const it = items().find(x => x.id === d.id); if (!it) return;
+    if (cfg.confirm && S.selected !== it.id) {
+      S.selected = it.id; paintLive(); say(it.name);
+      clearTimeout(S.selT); S.selT = setTimeout(() => { S.selected = null; paintLive(); }, 10000);
+      return;
+    }
+    S.selected = null; paintLive();
+    say('Lecture : ' + it.name);
+    if (await run(() => S.backend.playContext(it.uri))) {
+      S.now = { ...(S.now || {}), playing: true, context: it.uri, title: it.name, artist: '', image: it.image, device: '', volume: S.now?.volume };
+      S.screen = 'player'; render(); pollSoon(900);
+    }
+  },
+  page(d) { S.page += +d.dir; S.selected = null; render(); say(`Page ${S.page + 1}`); },
+  nowplaying() { S.screen = 'player'; render(); poll(); },
+  back() { S.screen = 'home'; render(); },
+  async toggle() {
+    S.backend.unlock?.();
+    const playing = !!S.now?.playing;
+    if (S.now) { S.now.playing = !playing; paintLive(); }
+    if (!(await run(() => S.backend.toggle ? S.backend.toggle() : playing ? S.backend.pause() : S.backend.resume()))) { pollSoon(200); return; }
+    say(playing ? 'Pause' : 'Lecture'); pollSoon();
+  },
+  async next() { S.backend.unlock?.(); if (await run(() => S.backend.next())) pollSoon(); },
+  async prev() { S.backend.unlock?.(); if (await run(() => S.backend.prev())) pollSoon(); },
+  async vol(d) {
+    const v = Math.max(0, Math.min(100, (S.now?.volume ?? 50) + +d.d));
+    if (S.now) { S.now.volume = v; paintLive(); }
+    if (!(await run(() => S.backend.setVolume(v)))) pollSoon(200);
+  },
+  activate() {
+    const p = activateWeb();                       // synchrone jusqu'à la création du lecteur : on est dans le geste
+    showMessage('Activation de la musique…', { ms: 12000, speak: false });
+    p.then(ok => {
+      if (ok === null) return;                     // SDK pas encore chargé : on réessaiera au prochain toucher
+      $('#msg').style.display = 'none';
+      if (ok) { render(); say('La musique est prête'); }
+      else failWeb(String(tok()?.scope || '').includes('streaming')
+        ? 'Le lecteur intégré ne démarre pas. Utilisation de l’application Spotify à la place.'
+        : 'Reconnexion à Spotify nécessaire pour le lecteur intégré. Demandez de l’aide.');
+    });
+  },
+  settings() { S.screen = 'settings'; render(); },
+  connect() { if (cfg.clientId) spLogin(cfg.clientId); else { S.screen = 'settings'; render(); } }
+};
+
+/* =====================================================================
+   9. Écran de réglages (aidant) : interactions classiques par "clic"
+   ===================================================================== */
+function bindSettings() {
+  const g = id => document.getElementById(id);
+  const sync = () => pickBackend();
+  g('s-done').onclick = () => { S.screen = 'home'; S.page = 0; render(); loadHome(); poll(); };
+  g('s-cid').onchange = e => { cfg.clientId = e.target.value.trim(); saveCfg(); sync(); };
+  g('s-copy').onclick = async () => { try { await navigator.clipboard.writeText(redirectUri); showMessage('Adresse copiée', { speak: false, ms: 1500 }); } catch { } };
+  g('s-login').onclick = () => { cfg.clientId = g('s-cid').value.trim(); saveCfg(); sync(); if (!cfg.clientId) return showMessage('Saisissez d’abord le Client ID', { speak: false }); spLogin(cfg.clientId); };
+  g('s-logout').onclick = () => { store.set(TOK, null); S.allPl = null; S.now = null; render(); };
+  g('s-exp').onclick = async () => {
+    const code = toB64(JSON.stringify({ c: cfg.clientId, t: tok() })); g('s-code').value = code;
+    try { await navigator.clipboard.writeText(code); showMessage('Code copié', { speak: false, ms: 1500 }); } catch { }
+  };
+  g('s-imp').onclick = () => {
+    try { const j = JSON.parse(fromB64(g('s-code').value.trim())); cfg.clientId = j.c; store.set(TOK, j.t); saveCfg(); sync(); showMessage('Connexion importée', { speak: false, ms: 2000 }); render(); }
+    catch { showMessage('Code invalide', { speak: false, ms: 2500 }); }
+  };
+  const renderSel = () => {
+    g('s-sel').innerHTML = cfg.favorites.length ? '<h3>Affichées sur l’écran d’accueil (dans cet ordre)</h3>' + cfg.favorites.map((f, i) =>
+      `<div class="favrow"><span>${i + 1}. ${esc(f.name)}</span><button class="sbtn small" data-mv="-1" data-i="${i}">▲</button><button class="sbtn small" data-mv="1" data-i="${i}">▼</button><button class="sbtn small" data-rm="${i}">Retirer</button></div>`).join('')
+      : '<p class="muted">Aucune sélection : les 12 premières playlists seront affichées.</p>';
+    g('s-sel').querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const i = +b.dataset.i, j = i + +b.dataset.mv; if (j < 0 || j >= cfg.favorites.length) return; [cfg.favorites[i], cfg.favorites[j]] = [cfg.favorites[j], cfg.favorites[i]]; saveCfg(); renderSel(); renderFav(); });
+    g('s-sel').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { cfg.favorites.splice(+b.dataset.rm, 1); saveCfg(); renderSel(); renderFav(); });
+  };
+  const renderFav = () => {
+    const list = S.allPl || []; const box = g('s-fav');
+    if (!list.length) return;
+    box.innerHTML = list.map(p => `<label class="chk"><input type="checkbox" data-id="${esc(p.id)}" ${cfg.favorites.some(f => f.id === p.id) ? 'checked' : ''}> ${esc(p.name)}</label>`).join('');
+    box.querySelectorAll('input').forEach(cb => cb.onchange = () => {
+      const p = list.find(x => x.id === cb.dataset.id);
+      if (cb.checked) { if (!cfg.favorites.some(f => f.id === p.id)) cfg.favorites.push(p); } else cfg.favorites = cfg.favorites.filter(f => f.id !== p.id);
+      saveCfg(); renderSel();
+    });
+  };
+  g('s-load').onclick = async () => { if (await run(async () => { S.allPl = await S.backend.listPlaylists(); })) renderFav(); };
+  g('s-addlink').onclick = async () => {
+    const v = g('s-link').value.trim(); if (!v) return;
+    if (await run(async () => { const it = await S.backend.resolveLink(v); if (!cfg.favorites.some(f => f.id === it.id)) cfg.favorites.push(it); saveCfg(); })) { g('s-link').value = ''; renderSel(); showMessage('Ajouté', { speak: false, ms: 1500 }); }
+  };
+  g('s-devs').onclick = async () => {
+    let ds = []; if (!(await run(async () => { ds = await S.backend.devices(); }))) return;
+    g('s-devlist').innerHTML = `<label class="chk"><input type="radio" name="dev" value="" ${!cfg.deviceId ? 'checked' : ''}> Automatique (appareil actif)</label>` +
+      ds.map(d => `<label class="chk"><input type="radio" name="dev" value="${esc(d.id)}" data-n="${esc(d.name)}" ${cfg.deviceId === d.id ? 'checked' : ''}> ${esc(d.name)} <span class="muted">(${esc(d.type)})</span></label>`).join('') +
+      (ds.length ? '' : '<p class="muted">Aucun appareil. Ouvrez l’application Spotify sur l’iPad (ou sur l’enceinte), lancez un morceau, puis réessayez.</p>');
+    g('s-devlist').querySelectorAll('input').forEach(r => r.onchange = () => { cfg.deviceId = r.value || null; cfg.deviceName = r.dataset.n || null; saveCfg(); });
+  };
+  const bindOpt = (id, key, conv = v => v, look = false) => { const el = g(id); el.onchange = () => { cfg[key] = el.type === 'checkbox' ? el.checked : conv(el.value); saveCfg(); if (look) applyLook(); if (key === 'awake') keepAwake(); }; };
+  bindOpt('o-theme', 'theme', v => v, true); bindOpt('o-scale', 'scale', Number, true); bindOpt('o-per', 'perPage', Number);
+  bindOpt('o-confirm', 'confirm'); bindOpt('o-press', 'minPress', Number); bindOpt('o-cool', 'cooldown', Number);
+  g('o-engine').onchange = e => { cfg.engine = e.target.value; Web.failed = false; saveCfg(); pickBackend(); if (cfg.engine === 'web' && !S.demo) loadSdk().catch(() => { }); };
+  bindOpt('o-speech', 'speech'); bindOpt('o-announce', 'announce'); bindOpt('o-shuffle', 'shuffle'); bindOpt('o-awake', 'awake');
+  renderSel(); renderFav();
+}
+// Les clics qui suivent l'ouverture des réglages (relâchement du doigt après l'appui long) sont ignorés.
+$('#app').addEventListener('click', e => { if (S.lock) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+/* =====================================================================
+   10. Démarrage
+   ===================================================================== */
+async function keepAwake() {
+  try {
+    if (!cfg.awake) { await S.wl?.release(); S.wl = null; return; }
+    if ('wakeLock' in navigator && !S.wl) { S.wl = await navigator.wakeLock.request('screen'); S.wl.addEventListener('release', () => { S.wl = null; }); }
+  } catch { }
+}
+async function loadHome() {
+  if (S.demo || !tok() || cfg.favorites.length || S.allPl) return;
+  try { S.allPl = await S.backend.listPlaylists(); }
+  catch (e) { S.allPl = []; if (e.code !== 'login') showMessage(errText(e), { ms: 6000 }); } // 'login' : l'écran d'accueil propose déjà « Se connecter »
+  if (S.screen === 'home') render();
+}
+async function init() {
+  pickBackend();
+  let r = null;
+  if (cfg.clientId) r = await spHandleRedirect().catch(e => ({ error: e.code || String(e) }));
+  if (r?.error) { S.screen = 'settings'; render(); showMessage('Connexion refusée : ' + r.error, { ms: 9000, speak: false }); }
+  else if (r?.ok) { S.screen = 'settings'; render(); showMessage('Connecté à Spotify ✔', { ms: 4000, speak: false }); }
+  else render();
+  loadHome(); keepAwake(); poll();
+  if (!S.demo && cfg.engine === 'web') loadSdk().catch(() => { });
+  setInterval(poll, 2500);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); poll(); } });
+}
+init();
+window.__ma_musique = { S, cfg, actions, Web }; // pratique pour le débogage
+})();
+</script>
+</body>
+</html>

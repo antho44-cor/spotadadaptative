@@ -1,0 +1,26 @@
+# Ma musique — serveur de test HTTPS sur le réseau local (Caddy)
+# Lancer :  docker compose up -d
+# Changer les ports ou le nom :
+#   HTTPS_PORT=9555 HTTP_PORT=9556 SITE_HOST=mon-serveur.local docker compose up -d
+# Le port est le même dehors et dedans : Caddy doit le connaître pour ses redirections.
+services:
+  caddy:
+    image: caddy:2
+    container_name: ma-musique
+    restart: unless-stopped
+    ports:
+      - "${HTTPS_PORT:-8743}:${HTTPS_PORT:-8743}"
+      - "${HTTP_PORT:-8780}:${HTTP_PORT:-8780}"
+    environment:
+      SITE_HOST: ${SITE_HOST:-musique.lan}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+      HTTP_PORT: ${HTTP_PORT:-8780}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./site:/srv:ro
+      - caddy_data:/data      # contient l'autorité de certification locale
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
